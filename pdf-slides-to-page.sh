@@ -1,10 +1,9 @@
-#!/bin/bash
-
+#!/usr/bin/env bash
 # set -x
 
 args=("$@")
 nazwa_pliku="${args[0]}"
-nazwa=${nazwa_pliku::${#nazwa_pliku}-4}                                                                                   
+nazwa=${nazwa_pliku::${#nazwa_pliku}-4}
 rozszerzenie=${nazwa_pliku: -4}
 
 ilosc_stron=$(pdfinfo "$nazwa_pliku" | grep Pages | awk '{print $2}')
@@ -41,7 +40,7 @@ for ((i=1; i<=$files; i=i+2)); do
 	if [ ${even##+(0)} -gt $ilosc_stron ]; then
 		even=$odd
 	fi
-	
+
 	# echo $odd
 	# echo $even
 
@@ -60,12 +59,16 @@ printf '%s' '
 \usepackage{pdfpages}
 \usepackage{bera}
 \usepackage{fancyhdr}
-
 \usepackage[left=0.5cm,right=0.5cm,top=0cm,bottom=1.5cm]{geometry}
+\usepackage{ifthen}
+\usepackage{currfile}
+
 \fancyhf{}
 \renewcommand{\headrulewidth}{0pt}
-\fancyfoot[LE,RO]{\huge\thepage}
-\pagestyle{fancy} 
+
+\fancyfoot[LE,RO]{\ifthenelse{\value{page}=1}{\currfilename \hspace{1cm}  \huge\thepage}{\huge\thepage}}
+
+\pagestyle{fancy}
 
 \begin{document}
 \includepdf[pages=-,pagecommand={\thispagestyle{fancy}}]{'"${nazwa}_a4_NOnr$rozszerzenie"'}

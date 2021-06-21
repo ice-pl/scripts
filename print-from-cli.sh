@@ -1,6 +1,4 @@
-#!/bin/bash
-
-
+#!/usr/bin/env bash
 args=("$@")
 NAZWA_PLIKU=${args[0]}
 PARAMETR_MENU=${args[1]}
@@ -20,14 +18,14 @@ menu () {
     		[ O|o ] nieparzyste po kolei
     	[ Q|q ] Quit
     	"
-	 
+
     	read -p "	Wpisz wybraną opcję [ ... lub Q ] > "
 	else
 		REPLY=$PARAMETR_MENU
 	fi
 
     case $REPLY in
-        H|h)  
+        H|h)
 			# usage
             read -p "Press any key to continue... " -n1 -s
             menu
@@ -41,10 +39,10 @@ menu () {
 		O|o)
 			print_odd_normal
             ;;
-		Q|q)  
+		Q|q)
 			exit 0
             ;;
-        *)  
+        *)
 			echo "Nieprawidłowa opcja " >&2
             menu
             ;;
@@ -57,9 +55,9 @@ sleep_exit_dialog () {
 		COUNTER=$i
 		while [  $COUNTER -lt $const ]; do
 			printf "%s" "."
-			let COUNTER=COUNTER+1 
+			let COUNTER=COUNTER+1
 		done
-		
+
 		printf "%s" "."
 		variable=$(awk -v var=$i 'BEGIN{ ans=var/10} { print ans}'<<</dev/null)
 		sleep $variable
@@ -108,13 +106,13 @@ sub_menu () {
     		[ N|n ] NIE (przerwać skrypt)
     	"
 	read -p "	Czy strony w druarce są przełożone (T/N)? " wybor
-	case "$wybor" in 
+	case "$wybor" in
 		t|T )
 			;;
 		n|N )
 			exit 0
 			;;
-		* ) 
+		* )
 			echo "Błędny wybór"
 			sub_menu
 			;;

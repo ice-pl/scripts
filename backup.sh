@@ -1,5 +1,4 @@
-#!/bin/bash
-
+#!/usr/bin/env bash
 GREEN='\033[0;32m'
 RED='\033[0;31m'
 PINK='\033[0;91m'
@@ -67,10 +66,10 @@ menu () {
 	"
 
 
-	
+
 	read -p "Wpisz wybraną opcję [0-3] > "
 	echo
-	
+
 	case $REPLY in
 		0)	create_backup_include_list
 			create_backup_exclude_list
@@ -106,6 +105,7 @@ menu () {
 create_backup_include_list () {
 echo -e "
 .config/awesome/
+.config/cmus/
 .config/klavaro/
 .config/Kvantum/
 .config/lxterminal/
@@ -117,6 +117,7 @@ echo -e "
 .config/vivaldi/Default/History
 .config/vivaldi/Default/Preferences
 .config/compton.conf
+.aliasrc
 .bashrc
 .dir_colors
 .profile
@@ -185,7 +186,7 @@ test_backup_current_config_NOW (){
 
 	case $REPLY in
 	    T|t)	create_backup_include_list
-				create_backup_exclude_list 
+				create_backup_exclude_list
 				backup_current_config_NOW
 				;;
 	    N|n)  	echo "Program zakończył działanie."
@@ -204,7 +205,7 @@ test_backup_current_config (){
 
 	case $REPLY in
 	    T|t)	create_backup_include_list
-				create_backup_exclude_list 
+				create_backup_exclude_list
 				backup_current_config
 				;;
 	    N|n)  	echo "Program zakończył działanie."
@@ -223,7 +224,7 @@ test_replace_local_disk (){
 		echo
 
 		case $REPLY in
-			T|t)	
+			T|t)
 					replace_local_disk
 					;;
 			N|n)  	echo "Program zakończył działanie."
@@ -274,4 +275,3 @@ replace_local_disk () {
 
 last_created_backup
 menu
-

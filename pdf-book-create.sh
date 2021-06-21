@@ -1,5 +1,4 @@
-#!/bin/bash
-
+#!/usr/bin/env bash
 # instalacja pdfCropMargins dla obecnego użytkownika w ~/.local/bin
 # pip install pdfCropMargins --user --upgrade
 
@@ -40,7 +39,7 @@ rotate_odd_pages () {
 	pdftk "${NazwaTymczsowa}_cropped-book${Rozszerzenie}" rotate 1-end oddsouth output "${NazwaTymczsowa}_cropped-book-rotated${Rozszerzenie}"
 }
 remove_unused () {
-	ls "${NazwaTymczsowa}"* | grep -v "rotated" | xargs -d "\n" -I {} rm {} 
+	ls "${NazwaTymczsowa}"* | grep -v "rotated" | xargs -d "\n" -I {} rm {}
 }
 
 
@@ -62,10 +61,10 @@ insert_shift () {
 	echo -e "${ORANGE}\tWstawianie przesunięcia:"
 	echo -e "\t\t-należy podać nr strony w pliku i odpowiadający mu nr strony w dokumencie${NC}"
 	echo
-	read -p "	nr strony w Pliku > " StronaPliku 
+	read -p "	nr strony w Pliku > " StronaPliku
 	var=${StronaPliku}
 	check_if_numbers
-	read -p "	nr strony w Dokumencie > " StronaDokumentu 
+	read -p "	nr strony w Dokumencie > " StronaDokumentu
 	var=${StronaDokumentu}
 	check_if_numbers
 	Przesuniecie=$((StronaDokumentu-StronaPliku))
@@ -195,7 +194,7 @@ menu () {
 	    M|m)	insert_first_pages_of_chapters
 				menu
 			;;
-	    S|s)	insert_shift	
+	    S|s)	insert_shift
 				menu
 			;;
 	    R|r)	clear
@@ -209,4 +208,3 @@ menu () {
 
 
 menu
-

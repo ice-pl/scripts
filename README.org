@@ -1,0 +1,955 @@
+#+TITLE: Skrypty
+#+STARTUP: showeverything
+
+* SPIS TREŚCI :toc:
+  - [[#wstawienie-shebang][Wstawienie shebang]]
+  - [[#tworzenie-plików][Tworzenie plików]]
+- [[#baskupsh][baskup.sh]]
+- [[#pdf-book-createsh][pdf-book-create.sh]]
+- [[#pdf-book-multiplysh][pdf-book-multiply.sh]]
+- [[#pdf-colors-changesh][pdf-colors-change.sh]]
+- [[#pdf-multiple-imagessh][pdf-multiple-images.sh]]
+- [[#pdf-slides-to-pagesh][pdf-slides-to-page.sh]]
+- [[#print-from-clish][print-from-cli.sh]]
+
+** Wstawienie shebang
+<SPC-i-s>
+
+** Tworzenie plików
+wykonać komendę:
+org-babel-tangle <C-c C-v t>
+
+* baskup.sh
+
+Tworzenie backupu konfiguracji.
+
+#+begin_src bash :tangle backup.sh :shebang #!/usr/bin/env bash
+
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+PINK='\033[0;91m'
+ORANGE='\033[0;33m'
+CYAN='\033[0;36m'
+GREEN_BOLD='\033[1;32m'
+RED_BOLD='\033[1;31m'
+PINK_BOLD='\033[1;91m'
+ORANGE_BOLD='\033[1;33m'
+CYAN_BOLD='\033[1;36m'
+
+NC='\033[0m' # No Color
+BLINKING_ON='\033[5m'
+BLINKING_OFF='\033[0m'
+
+
+START_POINT=$HOME
+DISK="_linux_BACKUP"
+CATALOG="_backup_config"
+SYSTEM_NAME="awesome_wm [manjaro_20.0]"
+MACHINE=$HOSTNAME
+NOW=$(date +"%Y [%V]")
+# NOW=$(date +"%Y_%m_%d (%H:%M:%S)")
+echo $SYSTEM_NAME
+echo $NOW
+echo $MACHINE
+
+
+LAN_CATALOG="_LAN"
+
+_LAN_DISK_PATH=$START_POINT/$LAN_CATALOG/$DISK
+LOCAL_DISK_PATH=$START_POINT/$DISK
+
+PARTIAL_PATH=$START_POINT/$DISK/$CATALOG
+MACHINE_PATH=$PARTIAL_PATH/"$SYSTEM_NAME ${MACHINE}"
+TIMED_PATH="$MACHINE_PATH - $NOW"
+
+echo "PARTIAL_PATH  := 	" $PARTIAL_PATH
+echo "MACHINE_PATH  :=	" $MACHINE_PATH
+echo "TIMED_PATH    := 	" $TIMED_PATH
+
+
+# pause () {
+#  read -s -n 1 -p "Press any key to continue . . ."
+#  echo ""
+# }
+
+pause () {
+	echo 'Press [Enter] key to continue...'
+	read -p "$*"
+}
+
+menu () {
+	echo -e "
+	Proszę wybrać:
+
+	0. pokaż listy
+	1. backup konfiguracji => (kopia na dysk z datą) LINUX_BACKUP_NOW
+	2. backup konfiguracji => (kopia na dysk) LINUX_BACKUP
+
+	${ORANGE_BOLD}5. LINUX_BACKUP => bieżca konfiguracja (zastąp z ostaniego folderu z datą)
+	${PINK_BOLD}9. zastąpinie CAŁEGO dysku backupu tym, który jest w _LAN${NC}
+
+	Q|q. Wyjdź
+	"
+
+
+
+	read -p "Wpisz wybraną opcję [0-3] > "
+	echo
+
+	case $REPLY in
+		0)	create_backup_include_list
+			create_backup_exclude_list
+			show_include_list
+			show_exclude_list
+			remove_lists
+			;;
+	    1)	create_backup_include_list
+			create_backup_exclude_list
+			test_backup_current_config_NOW
+			remove_lists
+			;;
+	    2)	create_backup_include_list
+			create_backup_exclude_list
+			test_backup_current_config
+			remove_lists
+			;;
+		5)	test_restore_config_from_backup
+			;;
+		9)	test_replace_local_disk
+			;;
+	    Q|q)  echo "Program zakończył działanie."
+	        exit
+	        ;;
+	    ,*)  echo "Nieprawidłowa opcja " >&2
+	        exit 1
+	        ;;
+	    esac
+}
+
+
+
+create_backup_include_list () {
+echo -e "
+.config/awesome/
+.config/cmus/
+.config/klavaro/
+.config/Kvantum/
+.config/lxterminal/
+.config/mpv/
+.config/nvim/
+.config/ranger/
+.config/vifm/
+.config/vivaldi/Default/Bookmarks
+.config/vivaldi/Default/History
+.config/vivaldi/Default/Preferences
+.config/compton.conf
+.aliasrc
+.bashrc
+.dir_colors
+.profile
+.Xmodmap
+.Xresources
+.zshrc
+" | sed '1d' | sed -e '$ d' > $PARTIAL_PATH/backup-include-list
+}
+
+create_backup_exclude_list () {
+echo -e "
+.config/nvim/plugins/
+.config/ranger/plugins/__pycache__/
+.config/ranger/plugins/__init__.py
+.config/ranger/colorschemes/__init__.py
+.config/vifm/vifminfo.json_*
+" | sed '1d' | sed -e '$ d' > $PARTIAL_PATH/backup-exclude-list
+}
+
+show_include_list () {
+	echo -e "${GREEN}$(<backup-include-list)${NC}"
+}
+show_exclude_list () {
+	echo -e "${RED}$(<backup-exclude-list)${NC}"
+}
+
+remove_lists () {
+	if [ -f $PARTIAL_PATH/backup-include-list ]; then
+		rm $PARTIAL_PATH/backup-include-list
+	fi
+	if [ -f $PARTIAL_PATH/backup-exclude-list ]; then
+		rm $PARTIAL_PATH/backup-exclude-list
+	fi
+}
+
+test_restore_config_from_backup() {
+	cd $PARTIAL_PATH
+	LAST_BACKUP=$(ls -td -- */ | head -n 1 | cut -d'/' -f1)
+	rsync --dry-run -av --recursive $PARTIAL_PATH/"$LAST_BACKUP"/.config/ $START_POINT/.config/ 2>/dev/null
+
+	echo
+	echo "---------------------------"
+	echo "Ostatni backup w katalogu:= $LAST_BACKUP"
+	echo "==========================="
+	read -p "Przywrócić konfigurację z ostatniego backupu [T/N] > "
+	echo
+
+	case $REPLY in
+	    T|t)	restore_config_from_backup
+				;;
+	    N|n)  	echo "Program zakończył działanie."
+	        	exit
+	        	;;
+	    ,*)  	echo "Nieprawidłowa opcja " >&2
+	        	exit 1
+	        	;;
+	    esac
+}
+
+
+test_backup_current_config_NOW (){
+	rsync --dry-run -av --delete --recursive --files-from=$PARTIAL_PATH/backup-include-list --exclude-from=$PARTIAL_PATH/backup-exclude-list $START_POINT "$TIMED_PATH" 2>/dev/null
+
+	read -p "Zrobić backup [T/N] > "
+	echo
+
+	case $REPLY in
+	    T|t)	create_backup_include_list
+				create_backup_exclude_list
+				backup_current_config_NOW
+				;;
+	    N|n)  	echo "Program zakończył działanie."
+	        	;;
+	    ,*)  	echo "Nieprawidłowa opcja " >&2
+				test_backup_current_config_NOW
+	        	;;
+	    esac
+}
+
+test_backup_current_config (){
+	rsync --dry-run -av --delete --recursive --files-from=$PARTIAL_PATH/backup-include-list --exclude-from=$PARTIAL_PATH/backup-exclude-list $START_POINT "$MACHINE_PATH" 2>/dev/null
+
+	read -p "Zrobić backup [T/N] > "
+	echo
+
+	case $REPLY in
+	    T|t)	create_backup_include_list
+				create_backup_exclude_list
+				backup_current_config
+				;;
+	    N|n)  	echo "Program zakończył działanie."
+	        	;;
+	    ,*)  	echo "Nieprawidłowa opcja " >&2
+				test_backup_current_config
+	        	;;
+	    esac
+}
+
+test_replace_local_disk (){
+	if [ -d $_LAN_DISK_PATH ]; then
+		rsync --dry-run -av --delete --recursive "$_LAN_DISK_PATH/." "$LOCAL_DISK_PATH" 2>/dev/null
+
+		read -p "$(echo -e ${PINK_BOLD}"\nZastąpić (nadpisać) lokalny backup [T/N] >" ${NC})"
+		echo
+
+		case $REPLY in
+			T|t)
+					replace_local_disk
+					;;
+			N|n)  	echo "Program zakończył działanie."
+					;;
+			,*)  	echo "Nieprawidłowa opcja " >&2
+					test_replace_local_disk
+					;;
+		esac
+	else
+		echo "Brak połączenia"
+	fi
+}
+
+
+last_created_backup () {
+	cd $PARTIAL_PATH
+	LAST_BACKUP=$(ls -td -- */ | head -n 1 | cut -d'/' -f1)
+	echo
+	echo -e "${CYAN_BOLD}LAST_BACKUP   := 	" $PARTIAL_PATH/$LAST_BACKUP "${NC}"
+}
+
+restore_config_from_backup() {
+	last_created_backup
+	rsync -av --recursive $PARTIAL_PATH/"$LAST_BACKUP"/.config/ $START_POINT/.config/ 2>/dev/null
+
+	cd $START_POINT/$DISK/
+	# mkdir -p new_back/.config/
+	rsync -r --exclude='*/' $PARTIAL_PATH/"$LAST_BACKUP"/ $START_POINT/ 2>/dev/null
+}
+
+backup_current_config_NOW (){
+	rsync -avt --delete --recursive --files-from=$PARTIAL_PATH/backup-include-list --exclude-from=$PARTIAL_PATH/backup-exclude-list $START_POINT "$TIMED_PATH" 2>/dev/null
+	touch "$TIMED_PATH"/time_file
+	rm "$TIMED_PATH"/time_file
+}
+
+backup_current_config (){
+	rsync -avt --delete --recursive --files-from=$PARTIAL_PATH/backup-include-list --exclude-from=$PARTIAL_PATH/backup-exclude-list $START_POINT "$MACHINE_PATH" 2>/dev/null
+	touch "$MACHINE_PATH"/time_file
+	rm "$MACHINE_PATH"/time_file
+}
+
+
+
+replace_local_disk () {
+	rsync -avt --delete --recursive "$_LAN_DISK_PATH/." "$LOCAL_DISK_PATH" 2>/dev/null
+}
+
+last_created_backup
+menu
+
+#+end_src
+
+* pdf-book-create.sh
+Tworzenie książki z pliku pdf.
+
+#+begin_src bash :tangle pdf-book-create.sh :shebang #!/usr/bin/env bash
+
+# instalacja pdfCropMargins dla obecnego użytkownika w ~/.local/bin
+# pip install pdfCropMargins --user --upgrade
+
+GREEN='\033[0;32m'
+RED='\033[1;31m'
+ORANGE='\033[1;33m'
+CYAN='\033[0;36m'
+NC='\033[0m' # No Color
+BLINKING_ON='\033[5m'
+BLINKING_OFF='\033[0m'
+
+
+# set -x
+args=("$@")
+
+NazwaPliku=${args[0]}
+Nazwa=${NazwaPliku::${#NazwaPliku}-4}
+Rozszerzenie=${NazwaPliku: -4}
+
+StronaPoczatkowa[0]=${args[1]}
+StronaKoncowa[0]=${args[2]}
+Przesuniecie=${args[3]}
+
+
+amount_of_pages () {
+	echo $(pdfinfo "$NazwaPliku" | grep Pages | awk '{print $2}')
+}
+cut_pages () {
+	pdftk "$NazwaPliku" cat ${ZakresStron} output "$NazwaTymczsowa${Rozszerzenie}"
+}
+crop_margins () {
+	pdf-crop-margins -v -s -u "$NazwaTymczsowa${Rozszerzenie}"
+}
+two_pages_in_one () {
+	pdfbook2 -n "${NazwaTymczsowa}_cropped${Rozszerzenie}"
+}
+rotate_odd_pages () {
+	pdftk "${NazwaTymczsowa}_cropped-book${Rozszerzenie}" rotate 1-end oddsouth output "${NazwaTymczsowa}_cropped-book-rotated${Rozszerzenie}"
+}
+remove_unused () {
+	ls "${NazwaTymczsowa}"* | grep -v "rotated" | xargs -d "\n" -I {} rm {}
+}
+
+
+unset_values () {
+	unset StronaPoczatkowa
+	unset StronaKoncowa
+	unset var
+}
+check_if_numbers () {
+	if ! [[ ${var} =~ ^-?[0-9]+$ ]]; then
+		echo -e "\t${RED}Tylko typ całkowity${NC}"
+		unset_values
+		menu
+	fi
+}
+
+
+insert_shift () {
+	echo -e "${ORANGE}\tWstawianie przesunięcia:"
+	echo -e "\t\t-należy podać nr strony w pliku i odpowiadający mu nr strony w dokumencie${NC}"
+	echo
+	read -p "	nr strony w Pliku > " StronaPliku
+	var=${StronaPliku}
+	check_if_numbers
+	read -p "	nr strony w Dokumencie > " StronaDokumentu
+	var=${StronaDokumentu}
+	check_if_numbers
+	Przesuniecie=$((StronaDokumentu-StronaPliku))
+	if [[ $Przesuniecie != ?(-)+([0-9]) ]]; then
+		Przesuniecie=0
+	fi
+}
+count_shifted () {
+	for ((i = 0; i<=((${#StronaKoncowa[@]}-1)); i = i+1)); do
+		StronaPoczatkowa[i]=$((${StronaPoczatkowa[i]}-$Przesuniecie))
+		StronaKoncowa[i]=$((${StronaKoncowa[i]}-$Przesuniecie))
+	done
+}
+
+
+insert_first_pages_of_chapters () {
+	unset_values
+	echo -e "${ORANGE}\tWstawianie wielu rozdziałów:"
+	echo -e "\t\t-tylko początkowe strony kolejnych rozdziałów"
+	echo -e "\t\t-gdy wstawiany jest tylko jeden zakres to wstawić o jedną stronę więcej${NC}"
+	echo
+	i=0
+	while true; do
+		read -p "	Rozdział $((${i}+1)) > " StronaPoczatkowa[i]
+		count_last_page_of_chapters
+		if [ ${#StronaPoczatkowa[i]} -eq 0 ]; then
+			unset 'StronaPoczatkowa[i-1]'
+			unset 'StronaKoncowa[i-1]'
+			break
+		fi
+		var=${StronaPoczatkowa[i]}
+		check_if_numbers
+		if [[ $i > 0 ]]; then
+			if [[ ${StronaPoczatkowa[i]} -le ${StronaPoczatkowa[i-1]} ]]; then
+				echo -e "\t${RED}Obecna wartość nie może być mniejsza od poprzedniej${NC}"
+				i=$((i - 1))
+			fi
+		fi
+
+
+
+		i=$((i + 1))
+		continue
+	done
+}
+count_last_page_of_chapters () {
+	if [[ $i > 0 ]]; then
+		StronaKoncowa[$((i-1))]=$((${StronaPoczatkowa[${#StronaPoczatkowa[@]}-1]}-1))
+	fi
+}
+
+
+
+
+run_once () {
+	ZakresStron=${StronaPoczatkowa[i]}-${StronaKoncowa[i]}
+	NazwaTymczsowa=${Nazwa}_${ZakresStron}
+	cut_pages
+	crop_margins
+	two_pages_in_one
+	rotate_odd_pages
+	remove_unused
+}
+run_multiple_times () {
+	for ((i = 0; i<=((${#StronaKoncowa[@]}-1)); i = i + 1)); do
+		run_once
+	done
+}
+run () {
+	run_multiple_times
+}
+
+
+
+
+show () {
+	if [[ -z ${args[1]} && -z ${StronaPoczatkowa[0]} ]]; then
+		StronaPoczatkowa[0]=1
+	fi
+	if [[ -z ${args[2]}  && -z ${StronaKoncowa[0]} ]]; then
+		StronaKoncowa[0]=$(amount_of_pages)
+	fi
+	if [[ -z ${args[3]} && -z ${Przesuniecie} ]]; then
+		Przesuniecie=0
+	fi
+	printf '\n'
+	echo "	--------------------------"
+	printf '%s\t' "	  StronaPoczatkowa :=        ""  ${StronaPoczatkowa[@]}"
+	printf '\n'
+	printf '%s\t' "	  StronaKoncowa :=           ""  ${StronaKoncowa[@]}"
+	printf '\n'
+	echo "	--------------------------"
+	printf '%s\t' "	  Przesuniecie :=            ""  ${Przesuniecie}"
+	show_with_shift
+}
+show_with_shift () {
+	count_shifted
+	printf '\n'
+	echo "	--------------------------"
+	echo -en "${CYAN}"
+	printf '%s\t' "	  StronaPoczatkowa :=        ""  ${StronaPoczatkowa[@]}"
+	printf '\n'
+	printf '%s\t' "	  StronaKoncowa :=           ""  ${StronaKoncowa[@]}"
+	echo -en "${NC}"
+}
+
+
+
+menu () {
+	clear
+	show
+	echo "
+	==========================
+	  MENU:
+	  M|m)  Wstaw strony
+	  S|s)  Wstaw przesunięcie
+	  R|r)  Wykonaj program
+	  Q|q)  Wyjdź
+	=========================="
+	echo
+	read -p "	Wpisz wybraną opcję >>> "
+	echo
+	case $REPLY in
+	    Q|q)  echo -e "\tProgram zakończył działanie."
+	        exit
+	        ;;
+	    M|m)	insert_first_pages_of_chapters
+				menu
+			;;
+	    S|s)	insert_shift
+				menu
+			;;
+	    R|r)	clear
+			run
+			;;
+	    *)  echo -e "\t${RED}Nieprawidłowa opcja${NC}" >&2
+	        exit 1
+	        ;;
+	    esac
+}
+
+
+menu
+
+
+#+end_src
+
+* pdf-book-multiply.sh
+
+Tworzenia książek dla wszystkich plików pdf w folderze.
+
+#+begin_src bash :tangle pdf-book-multiply.sh :shebang #!/usr/bin/env bash
+
+mkdir org
+
+for FILE in ./*.pdf; do
+  # pdfcrop "${FILE}"
+  # pdfcrop --margins '-10 -10 -10 -300' "${FILE}" "${FILE}_cropped"
+  # pdf-crop-margins -v -s -u "${FILE}"
+  pdf-book-create.sh "${FILE}"
+  mv "${FILE}" org/"${FILE}"
+done
+
+#+end_src
+
+* pdf-colors-change.sh
+
+Zmiana kolorów.
+
+#+begin_src bash :tangle pdf-colors-change.sh :shebang #!/usr/bin/env bash
+
+args=("$@")
+nazwa_pliku="${args[0]}"
+nazwa=${nazwa_pliku::${#nazwa_pliku}-4}
+rozszerzenie=${nazwa_pliku: -4}
+
+ilosc_stron=$(pdfinfo "$nazwa_pliku" | grep Pages | awk '{print $2}')
+
+
+menu () {
+    echo "
+    Proszę wybrać:
+
+    1. pdf to gray
+    2. pdf invert by image
+    3. pdf invert
+    0. Wyjdź
+    "
+
+
+
+    read -p "Wpisz wybraną opcję [0-3] > "
+    echo
+
+    case $REPLY in
+        1)  pdf_to_grey
+            ;;
+        2)  pdf_invert_by_image
+            ;;
+        3)  pdf_invert
+            ;;
+        0)  echo "Program zakończył działanie."
+            exit
+            ;;
+        *)  echo "Nieprawidłowa opcja " >&2
+            exit 1
+            ;;
+        esac
+}
+
+
+
+pdf_to_grey(){
+	gs \
+	 -sOutputFile="$nazwa"_gray.pdf \
+	 -sDEVICE=pdfwrite \
+	 -sColorConversionStrategy=Gray \
+	 -dProcessColorModel=/DeviceGray \
+	 -dCompatibilityLevel=1.4 \
+	 -dNOPAUSE \
+	 -dBATCH \
+	 "$nazwa_pliku"
+}
+
+
+
+
+pdf_invert_by_image(){
+	mkdir tmp_directory
+	pdftoppm "$nazwa_pliku" tmp_directory/page -png > /dev/null 2>&1
+
+	cd tmp_directory
+	for i in *.png ; do
+		convert -negate "$i" "${i%.*}_inverted.png" ;
+	done
+
+	cd ..
+	convert tmp_directory/*_inverted.png "${nazwa}"_inverted-big.pdf
+	rm -rf tmp_directory
+
+	gs -sDEVICE=pdfwrite -dCompatibilityLevel=1.4 -dPDFSETTINGS=/screen -dNOPAUSE -dQUIET -dBATCH -sOutputFile="${nazwa}"_inverted.pdf "${nazwa}"_inverted-big.pdf
+
+	rm "${nazwa}"_inverted-big.pdf
+}
+
+
+
+pdf_invert(){
+	gs -q -sDEVICE=pdfwrite -o "$nazwa"_inverted.pdf -c '{1 sub neg} settransfer' -f "$nazwa_pliku"
+}
+
+menu
+
+
+#+end_src
+
+* pdf-multiple-images.sh
+
+Tworzenie pdf-a z obrazóœ (uruchamiać wewnątrz folderu z plikami *.jpeg)
+
+#+begin_src bash :tangle pdf-multiple-images.sh :shebang #!/usr/bin/env bash
+
+# set -x
+
+args=("$@")
+dir="$(pwd)"
+
+prefix_name="working_process_"
+
+var_files_list=$prefix_name"files_list"
+quantity_of_images_in_one_page="${args[0]}"
+base_val=0
+
+
+delete_file(){
+	if [ -f $(basename $(pwd)).pdf ]; then
+		rm $(basename $(pwd)).pdf
+	fi
+}
+delete_folder(){
+	if [ -d $prefix_name ]; then
+		rm -rf $prefix_name
+	fi
+}
+
+
+
+save_files_list(){
+	if [ ! -f "$var_files_list" ]; then
+		printf '%s\n' * > $var_files_list
+	fi
+}
+
+
+
+get_line_from_file(){
+	sed -n ${line_nr}'p' < $var_files_list
+}
+how_many_lines_in_file(){
+	wc -l < $var_files_list
+}
+
+
+
+create_image_from_n_lines(){
+	names=""
+	for ((line_nr=$(($base_val+1)); line_nr<=base_val+quantity_of_images_in_one_page ; line_nr=$(($line_nr+1)) )); do
+		names+=" $(get_line_from_file)"
+	done
+	merged_file_name=$prefix_name$(printf '%04d' $((${base_val}+1)))_$(printf '%04d' $((${line_nr}-1))).jpeg
+	rm $merged_file_name  > /dev/null 2>&1
+	convert -append $names $prefix_name$( printf '%04d' $((${base_val}+1)))_$( printf '%04d' $((${line_nr}-1))).jpeg
+	base_val=$((${line_nr}-1))
+}
+next_n_lines(){
+	while [ $base_val -lt $(how_many_lines_in_file) ]; do
+		create_image_from_n_lines
+		names_merged+=" $merged_file_name"
+	done
+}
+merge_to_pdf(){
+	convert $prefix_name*.jpeg $(basename $(pwd)).pdf
+}
+
+
+
+create_folder(){
+	if [ ! -d $prefix_name ]; then
+		mkdir $prefix_name
+	fi
+}
+move_files(){
+	mv $prefix_name* $prefix_name/ > /dev/null 2>&1
+}
+
+
+
+
+delete_file
+delete_folder
+
+save_files_list
+next_n_lines
+merge_to_pdf
+
+create_folder
+move_files
+
+delete_folder
+
+#+end_src
+
+* pdf-slides-to-page.sh
+
+Konwersja slajdów pdf do formatu a4 (dwa na stronie jeden pod drugim), oraz dodanie numeru strony za pomocą TeX-a i nazwy pliku na pierwszej stronie.
+
+#+begin_src bash :tangle pdf-slides-to-page.sh :shebang #!/usr/bin/env bash
+
+# set -x
+
+args=("$@")
+nazwa_pliku="${args[0]}"
+nazwa=${nazwa_pliku::${#nazwa_pliku}-4}
+rozszerzenie=${nazwa_pliku: -4}
+
+ilosc_stron=$(pdfinfo "$nazwa_pliku" | grep Pages | awk '{print $2}')
+# echo $ilosc_stron
+
+# dir=$(pwd)
+dir="$(pwd)"
+
+if [[ -d "$dir/tmp_directory" ]]; then
+	rm -rf "$dir/tmp_directory"
+fi
+mkdir tmp_directory
+
+
+# pdftk "$nazwa_pliku" burst output tmp_directory/page_%04d.pdf > /dev/null 2>&1
+# pdftk "$nazwa_pliku" burst output tmp_directory/page_%04d.pdf
+
+pdfseparate "$nazwa_pliku" tmp_directory/page_%04d.pdf
+
+
+
+if [[ -f "$dir/tmp_directory/doc_data.txt" ]]; then
+	rm "$dir/tmp_directory/doc_data.txt"
+fi
+
+files=`ls "${dir}/tmp_directory" | wc -l`
+
+
+for ((i=1; i<=$files; i=i+2)); do
+
+	odd=$( printf '%04d' $i )
+	even=$( printf '%04d' $((i+1)) )
+
+	if [ ${even##+(0)} -gt $ilosc_stron ]; then
+		even=$odd
+	fi
+
+	# echo $odd
+	# echo $even
+
+	pdfjam "$dir"/tmp_directory/page_${odd}.pdf "$dir"/tmp_directory/page_${even}.pdf --nup 1x2 --no-landscape --paper a4paper --quiet --outfile "$dir"/tmp_directory/out_${odd}.pdf
+done
+
+cd "$dir/tmp_directory"
+rm page_*.pdf
+
+pdfunite *.pdf "${nazwa}_a4_bigger$rozszerzenie"
+gs -sDEVICE=pdfwrite -dCompatibilityLevel=1.4 -dPDFSETTINGS=/screen -dNOPAUSE -dQUIET -dBATCH -sOutputFile="${nazwa}_a4_NOnr$rozszerzenie" "${nazwa}_a4_bigger$rozszerzenie"
+
+
+printf '%s' '
+\documentclass[a4paper,12pt,twoside]{book}
+\usepackage{pdfpages}
+\usepackage{bera}
+\usepackage{fancyhdr}
+\usepackage[left=0.5cm,right=0.5cm,top=0cm,bottom=1.5cm]{geometry}
+\usepackage{ifthen}
+\usepackage{currfile}
+
+\fancyhf{}
+\renewcommand{\headrulewidth}{0pt}
+
+\fancyfoot[LE,RO]{\ifthenelse{\value{page}=1}{\currfilename \hspace{1cm}  \huge\thepage}{\huge\thepage}}
+
+\pagestyle{fancy}
+
+\begin{document}
+\includepdf[pages=-,pagecommand={\thispagestyle{fancy}}]{'"${nazwa}_a4_NOnr$rozszerzenie"'}
+\end{document}
+' > "${nazwa}_a4".tex
+
+pdflatex "${nazwa}_a4".tex
+
+
+mv "${nazwa}_a4$rozszerzenie" ../"${nazwa}_a4$rozszerzenie"
+cd ..
+rm -rf tmp_directory
+
+#+end_src
+
+* print-from-cli.sh
+
+Drukowanie za pomocą skrótu klawiszowego (do ranger-a).
+
+#+begin_src bash :tangle print-from-cli.sh :shebang #!/usr/bin/env bash
+
+args=("$@")
+NAZWA_PLIKU=${args[0]}
+PARAMETR_MENU=${args[1]}
+
+
+echo $PARAMETR_MENU
+
+
+menu () {
+    clear
+	if [ -z $PARAMETR_MENU ]; then
+    	echo "
+    	Proszę wybrać:
+    	[ H|h ] help (jak używać)
+    		[ B|b ] parzyste odwrotnie następnie nieparzyste po kolei
+    		[ E|e ] parzyste odwrotnie
+    		[ O|o ] nieparzyste po kolei
+    	[ Q|q ] Quit
+    	"
+
+    	read -p "	Wpisz wybraną opcję [ ... lub Q ] > "
+	else
+		REPLY=$PARAMETR_MENU
+	fi
+
+    case $REPLY in
+        H|h)
+			# usage
+            read -p "Press any key to continue... " -n1 -s
+            menu
+            ;;
+		B|b)
+			print_even_reverse_and_odd_normal
+            ;;
+		E|e)
+			print_even_reverse
+            ;;
+		O|o)
+			print_odd_normal
+            ;;
+		Q|q)
+			exit 0
+            ;;
+        *)
+			echo "Nieprawidłowa opcja " >&2
+            menu
+            ;;
+        esac
+}
+
+sleep_exit_dialog () {
+	const=10
+	for (( i=$const; i>=2; i=i-1)); do
+		COUNTER=$i
+		while [  $COUNTER -lt $const ]; do
+			printf "%s" "."
+			let COUNTER=COUNTER+1
+		done
+
+		printf "%s" "."
+		variable=$(awk -v var=$i 'BEGIN{ ans=var/10} { print ans}'<<</dev/null)
+		sleep $variable
+	done
+	printf "%s\n" ""
+	sleep 0.1
+}
+
+check_parameters () {
+	if [ -z "$NAZWA_PLIKU" ]; then
+            echo "Nie podano nazwy pliku"
+            echo -e "wychodzę \c"
+			sleep_exit_dialog
+			exit 1
+	fi
+	if [ ! -f "$NAZWA_PLIKU" ]; then
+            echo "Plik nie istnieje"
+            echo -e "wychodzę \c"
+			sleep_exit_dialog
+			exit 1
+	fi
+}
+
+print_even_reverse () {
+	check_parameters
+    # echo "przesłano nazwe pliku $NAZWA_PLIKU do parzystego i parametr $PARAMETR_MENU"
+	lpr -o outputorder=reverse -o page-set=even "$NAZWA_PLIKU"
+    echo -e "\ndrukowanie stron parzystych odwrotnie \c"
+	sleep_exit_dialog
+}
+
+print_odd_normal () {
+	check_parameters
+    # echo "przesłano nazwe pliku $NAZWA_PLIKU do nieparzystego i parametr $PARAMETR_MENU"
+	lpr -o outputorder=normal -o page-set=odd "$NAZWA_PLIKU"
+    echo -e "\ndrukowanie stron nieparzystych po kolei \c"
+	sleep_exit_dialog
+}
+
+
+sub_menu () {
+    	echo "
+    	Proszę wybrać:
+
+    		[ T|t ] TAK
+    		[ N|n ] NIE (przerwać skrypt)
+    	"
+	read -p "	Czy strony w druarce są przełożone (T/N)? " wybor
+	case "$wybor" in
+		t|T )
+			;;
+		n|N )
+			exit 0
+			;;
+		* )
+			echo "Błędny wybór"
+			sub_menu
+			;;
+	esac
+}
+
+print_even_reverse_and_odd_normal () {
+	print_even_reverse
+	sub_menu
+	print_odd_normal
+}
+
+menu
+
+#+end_src

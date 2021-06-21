@@ -1,8 +1,5 @@
-#!/bin/bash
-
-
+#!/usr/bin/env bash
 mkdir org
-
 
 for FILE in ./*.pdf; do
   # pdfcrop "${FILE}"
