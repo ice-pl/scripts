@@ -72,8 +72,13 @@ move_files(){
 	mv $prefix_name* $prefix_name/ > /dev/null 2>&1
 }
 
+number_of_images () {
+	echo
+	read -p "   quantity of images in one pdf page > " quantity_of_images_in_one_page
+	echo
+}
 
-
+number_of_images
 
 delete_file
 delete_folder
